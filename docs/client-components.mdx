@@ -1,0 +1,532 @@
+---
+title: Client Components
+description: Understanding and implementing client components in the Enterprise Developer Portal
+---
+
+# Client Components
+
+## Overview
+
+While our application primarily uses Server Components, Client Components are essential for handling interactivity, state management, and browser-specific functionality.
+
+## When to Use Client Components
+
+### 1. Interactive Features
+
+```typescript
+"use client";
+
+interface ApiKeyListProps {
+  initialKeys: ApiKey[];
+}
+
+export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
+  const [keys, setKeys] = useState(initialKeys);
+  const [showSecret, setShowSecret] = useState<string | null>(null);
+
+  const handleRevoke = async (keyId: string) => {
+    await revokeApiKey(keyId);
+    setKeys(keys.filter(key => key.id !== keyId));
+  };
+
+  return (
+    <div>
+      {keys.map(key => (
+        <div key={key.id}>
+          <code>{showSecret === key.id ? key.secret : '••••••••'}</code>
+          <Button onClick={() => setShowSecret(key.id)}>Show</Button>
+          <Button onClick={() => handleRevoke(key.id)}>Revoke</Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### 2. Browser APIs
+
+```typescript
+"use client";
+
+export function ClipboardCopy({ text }: { text: string }) {
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied to clipboard!");
+    } catch (err) {
+      toast.error("Failed to copy");
+    }
+  };
+
+  return (
+    <Button onClick={handleCopy}>
+      <Copy className="mr-2 h-4 w-4" />
+      Copy
+    </Button>
+  );
+}
+```
+
+### 3. Form Handling
+
+```typescript
+"use client";
+
+export function CreateOrganizationForm() {
+  const form = useForm<OrganizationFormData>({
+    resolver: zodResolver(organizationSchema),
+    defaultValues: {
+      name: "",
+      plan: "growth",
+      rateLimit: 1000
+    }
+  });
+
+  const onSubmit = async (data: OrganizationFormData) => {
+    try {
+      await createOrganization(data);
+      toast.success("Organization created!");
+    } catch (err) {
+      toast.error("Failed to create organization");
+    }
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        {/* Form fields */}
+      </form>
+    </Form>
+  );
+}
+```
+
+## Client Component Patterns
+
+### 1. State Management Pattern
+
+```typescript
+"use client";
+
+interface ContentProps {
+  initialData: any;
+}
+
+export function DashboardContent({ initialData }: ContentProps) {
+  // Local state
+  const [data, setData] = useState(initialData);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Refresh functionality
+  const handleRefresh = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const newData = await fetchDashboardData();
+      setData(newData);
+    } catch (err) {
+      setError('Failed to refresh data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      {error && <ErrorAlert message={error} />}
+      {loading ? (
+        <LoadingSpinner />
+      ) : (
+        <DashboardUI 
+          data={data} 
+          onRefresh={handleRefresh}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+### 2. Event Handling Pattern
+
+```typescript
+"use client";
+
+export function InteractiveTable({ data, onAction }: TableProps) {
+  const handleSort = (column: string) => {
+    // Sort logic
+  };
+
+  const handleFilter = (filters: Filter[]) => {
+    // Filter logic
+  };
+
+  const handleRowAction = async (row: any, action: string) => {
+    try {
+      await onAction(row.id, action);
+      toast.success(`${action} successful`);
+    } catch (err) {
+      toast.error(`Failed to ${action}`);
+    }
+  };
+
+  return (
+    <Table>
+      <TableHeader onSort={handleSort}>
+        {/* Header content */}
+      </TableHeader>
+      <TableFilters onFilter={handleFilter} />
+      <TableBody>
+        {data.map(row => (
+          <TableRow
+            key={row.id}
+            data={row}
+            onAction={handleRowAction}
+          />
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+```
+
+### 3. Custom Hook Pattern
+
+```typescript
+"use client";
+
+export function useApiKeys(organizationId: string) {
+  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchKeys = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await fetchApiKeys(organizationId);
+        setKeys(data);
+      } catch (err) {
+        setError('Failed to fetch API keys');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchKeys();
+  }, [organizationId]);
+
+  const createKey = async (data: NewKeyData) => {
+    // Create key logic
+  };
+
+  const revokeKey = async (keyId: string) => {
+    // Revoke key logic
+  };
+
+  return { keys, loading, error, createKey, revokeKey };
+}
+```
+
+## Best Practices
+
+### 1. Component Boundaries
+
+```typescript
+// ❌ Don't mix server and client logic
+export default function Page() {
+  // This won't work - useState in a Server Component
+  const [state, setState] = useState();
+  
+  // Server-side data fetching
+  const data = await fetchData();
+  
+  return <div>{/* ... */}</div>;
+}
+
+// ✅ Do separate concerns
+export default async function Page() {
+  // Server-side data fetching
+  const data = await fetchData();
+  
+  return (
+    <ClientComponent initialData={data} />
+  );
+}
+```
+
+### 2. Performance Optimization
+
+```typescript
+"use client";
+
+// Memoize expensive computations
+const MemoizedChart = memo(function Chart({ data }: ChartProps) {
+  const processedData = useMemo(() => {
+    return processChartData(data);
+  }, [data]);
+
+  return <ChartComponent data={processedData} />;
+});
+
+// Use callbacks for event handlers
+export function DataGrid({ onSort }: DataGridProps) {
+  const handleSort = useCallback((column: string) => {
+    onSort(column);
+  }, [onSort]);
+
+  return (
+    // Grid implementation
+  );
+}
+```
+
+### 3. Error Boundaries
+
+```typescript
+"use client";
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="error-ui">
+          <h2>Something went wrong</h2>
+          <Button onClick={() => this.setState({ hasError: false })}>
+            Try again
+          </Button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+## Client-Side State Management
+
+### 1. Local State
+
+```typescript
+"use client";
+
+export function Counter() {
+  const [count, setCount] = useState(0);
+  
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <Button onClick={() => setCount(c => c + 1)}>
+        Increment
+      </Button>
+    </div>
+  );
+}
+```
+
+### 2. Form State
+
+```typescript
+"use client";
+
+export function SettingsForm() {
+  const form = useForm({
+    defaultValues: {
+      notifications: true,
+      theme: 'light',
+      language: 'en'
+    }
+  });
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        {/* Form fields */}
+      </form>
+    </Form>
+  );
+}
+```
+
+### 3. Complex State
+
+```typescript
+"use client";
+
+interface State {
+  data: any[];
+  loading: boolean;
+  error: string | null;
+  filters: Filter[];
+  sort: Sort;
+}
+
+type Action =
+  | { type: 'SET_DATA'; payload: any[] }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_FILTERS'; payload: Filter[] }
+  | { type: 'SET_SORT'; payload: Sort };
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case 'SET_DATA':
+      return { ...state, data: action.payload };
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    // Other cases...
+    default:
+      return state;
+  }
+}
+
+export function DataGrid() {
+  const [state, dispatch] = useReducer(reducer, initialState);
+
+  // Component implementation
+}
+```
+
+## Client-Side Effects
+
+### 1. Data Fetching
+
+```typescript
+"use client";
+
+export function LiveData() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const response = await fetch('/api/live-data');
+      const json = await response.json();
+      setData(json);
+    };
+
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    // Component JSX
+  );
+}
+```
+
+### 2. Browser APIs
+
+```typescript
+"use client";
+
+export function GeolocationComponent() {
+  const [location, setLocation] = useState<GeolocationPosition | null>(null);
+
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        position => setLocation(position),
+        error => console.error('Error:', error)
+      );
+    }
+  }, []);
+
+  return (
+    // Component JSX
+  );
+}
+```
+
+### 3. Cleanup
+
+```typescript
+"use client";
+
+export function WebSocketComponent() {
+  useEffect(() => {
+    const ws = new WebSocket('wss://api.example.com');
+    
+    ws.onmessage = (event) => {
+      // Handle message
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
+  return (
+    // Component JSX
+  );
+}
+```
+
+## Testing Client Components
+
+### 1. Component Testing
+
+```typescript
+describe('ApiKeyList', () => {
+  it('renders initial keys', () => {
+    render(<ApiKeyList initialKeys={mockKeys} />);
+    expect(screen.getAllByRole('listitem')).toHaveLength(mockKeys.length);
+  });
+
+  it('handles key revocation', async () => {
+    render(<ApiKeyList initialKeys={mockKeys} />);
+    await userEvent.click(screen.getByText('Revoke'));
+    expect(screen.queryByText(mockKeys[0].id)).not.toBeInTheDocument();
+  });
+});
+```
+
+### 2. Hook Testing
+
+```typescript
+describe('useApiKeys', () => {
+  it('fetches keys on mount', async () => {
+    const { result } = renderHook(() => useApiKeys('org_123'));
+    
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => {
+      expect(result.current.keys).toHaveLength(2);
+      expect(result.current.loading).toBe(false);
+    });
+  });
+});
+```
+
+### 3. Integration Testing
+
+```typescript
+describe('CreateOrganizationForm', () => {
+  it('submits form successfully', async () => {
+    render(<CreateOrganizationForm />);
+    
+    await userEvent.type(screen.getByLabelText('Name'), 'Test Org');
+    await userEvent.selectOptions(screen.getByLabelText('Plan'), 'enterprise');
+    await userEvent.click(screen.getByText('Create'));
+    
+    expect(await screen.findByText('Organization created!')).toBeInTheDocument();
+  });
+});
+```

@@ -1,0 +1,317 @@
+---
+title: Environment Variables
+description: Documentation for environment variables configuration and usage
+---
+
+# Environment Variables
+
+## Overview
+
+The Enterprise Developer Portal uses environment variables for configuration management across different environments. This guide explains the available variables and their usage.
+
+## Configuration Files
+
+```plaintext
+.env                # Base environment variables
+.env.local         # Local overrides (not committed)
+.env.development   # Development environment
+.env.production    # Production environment
+```
+
+## Core Variables
+
+### Authentication
+
+```bash
+# NextAuth.js Configuration
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-nextauth-secret-key
+
+# JWT Configuration
+JWT_SECRET=your-jwt-secret-key
+JWT_EXPIRY=24h
+```
+
+### Database Configuration
+
+```bash
+# MongoDB Connection
+MONGODB_URI=mongodb+srv://<username>:<password>@<your-cluster>.mongodb.net/<database>
+MONGODB_DB=your-database-name
+
+# Database Pool Configuration
+MONGODB_POOL_SIZE=10
+MONGODB_TIMEOUT=30000
+```
+
+### API Configuration
+
+```bash
+# API Base URLs
+NEXT_PUBLIC_API_URL=/api
+API_BASE_URL=http://localhost:3000
+
+# Rate Limiting
+API_RATE_LIMIT=1000
+API_RATE_WINDOW=60
+
+# API Timeouts
+API_TIMEOUT=30000
+API_RETRY_ATTEMPTS=3
+```
+
+### Feature Flags
+
+```bash
+# Feature Management
+ENABLE_BETA_FEATURES=false
+MAINTENANCE_MODE=false
+ENABLE_API_MOCKING=true
+
+# Module Controls
+ENABLE_ENTERPRISE_FEATURES=true
+ENABLE_SUPPORT_CHAT=true
+```
+
+### Email Configuration
+
+```bash
+# SMTP Settings
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=your-smtp-user
+SMTP_PASSWORD=your-smtp-password
+
+# Email Defaults
+DEFAULT_FROM_EMAIL=noreply@example.com
+SUPPORT_EMAIL=support@example.com
+```
+
+### Monitoring & Analytics
+
+```bash
+# Application Insights
+NEXT_PUBLIC_ANALYTICS_ID=UA-XXXXXXXXX-X
+ERROR_REPORTING_KEY=your-error-reporting-key
+
+# Logging
+LOG_LEVEL=info
+ENABLE_DEBUG_LOGGING=false
+```
+
+## Usage in Code
+
+### Server-Side Usage
+
+```typescript
+// Database connection
+const dbConnect = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI!, {
+      maxPoolSize: parseInt(process.env.MONGODB_POOL_SIZE || '10'),
+      serverSelectionTimeoutMS: parseInt(process.env.MONGODB_TIMEOUT || '30000')
+    });
+    console.log('Connected to MongoDB');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+  }
+};
+
+// API configuration
+const apiConfig = {
+  baseUrl: process.env.API_BASE_URL,
+  timeout: parseInt(process.env.API_TIMEOUT || '30000'),
+  retryAttempts: parseInt(process.env.API_RETRY_ATTEMPTS || '3')
+};
+```
+
+### Client-Side Usage
+
+```typescript
+// Only NEXT_PUBLIC_ variables are available on the client
+const config = {
+  apiUrl: process.env.NEXT_PUBLIC_API_URL,
+  analyticsId: process.env.NEXT_PUBLIC_ANALYTICS_ID
+};
+```
+
+## Environment-Specific Configuration
+
+### Development
+
+```bash
+# .env.development
+NODE_ENV=development
+NEXT_PUBLIC_API_URL=http://localhost:3000/api
+ENABLE_API_MOCKING=true
+LOG_LEVEL=debug
+```
+
+### Production
+
+```bash
+# .env.production
+NODE_ENV=production
+NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+ENABLE_API_MOCKING=false
+LOG_LEVEL=error
+```
+
+## Security Best Practices
+
+### 1. Secret Management
+
+```bash
+# ✅ Good: Use strong, unique secrets
+JWT_SECRET=a-very-long-and-random-secret-key-that-is-unique
+
+# ❌ Bad: Weak or shared secrets
+JWT_SECRET=secret123
+```
+
+### 2. Access Control
+
+```typescript
+// Validate required variables
+const requiredEnvVars = [
+  'MONGODB_URI',
+  'JWT_SECRET',
+  'NEXTAUTH_SECRET'
+];
+
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    throw new Error(`Missing required environment variable: ${envVar}`);
+  }
+}
+```
+
+### 3. Validation
+
+```typescript
+// Validate environment variables at startup
+function validateEnv() {
+  const schema = z.object({
+    MONGODB_URI: z.string().url(),
+    API_RATE_LIMIT: z.string().transform(Number).pipe(z.number().positive()),
+    ENABLE_BETA_FEATURES: z.string().transform(val => val === 'true'),
+    LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error'])
+  });
+
+  try {
+    schema.parse(process.env);
+  } catch (error) {
+    console.error('Invalid environment variables:', error);
+    process.exit(1);
+  }
+}
+```
+
+## Development Workflow
+
+### 1. Local Setup
+
+```bash
+# Copy example env file
+cp .env.example .env.local
+
+# Edit local variables
+nano .env.local
+```
+
+### 2. CI/CD Configuration
+
+```yaml
+# GitHub Actions example
+steps:
+  - name: Set Environment Variables
+    run: |
+      echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" >> $GITHUB_ENV
+      echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> $GITHUB_ENV
+```
+
+### 3. Runtime Configuration
+
+```typescript
+// Load environment variables at runtime
+const runtimeConfig = {
+  database: {
+    uri: process.env.MONGODB_URI,
+    poolSize: process.env.MONGODB_POOL_SIZE || 10
+  },
+  api: {
+    rateLimit: process.env.API_RATE_LIMIT || 1000,
+    timeout: process.env.API_TIMEOUT || 30000
+  },
+  features: {
+    betaEnabled: process.env.ENABLE_BETA_FEATURES === 'true',
+    maintenanceMode: process.env.MAINTENANCE_MODE === 'true'
+  }
+};
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Missing Variables**
+   ```typescript
+   if (!process.env.REQUIRED_VAR) {
+     throw new Error('REQUIRED_VAR is not defined');
+   }
+   ```
+
+2. **Type Conversion**
+   ```typescript
+   const rateLimit = parseInt(process.env.API_RATE_LIMIT || '1000', 10);
+   const debugMode = process.env.DEBUG_MODE === 'true';
+   ```
+
+3. **Environment Detection**
+   ```typescript
+   const isDevelopment = process.env.NODE_ENV === 'development';
+   const isProduction = process.env.NODE_ENV === 'production';
+   ```
+
+## Deployment Considerations
+
+### 1. Production Setup
+
+```bash
+# Production environment variables
+MONGODB_URI=mongodb+srv://prod-user:****@prod-cluster.mongodb.net
+JWT_SECRET=prod-secret-key
+ENABLE_API_MOCKING=false
+LOG_LEVEL=error
+```
+
+### 2. Staging Setup
+
+```bash
+# Staging environment variables
+MONGODB_URI=mongodb+srv://staging-user:****@staging-cluster.mongodb.net
+JWT_SECRET=staging-secret-key
+ENABLE_API_MOCKING=true
+LOG_LEVEL=debug
+```
+
+### 3. Environment Validation
+
+```typescript
+// Validate production environment
+if (process.env.NODE_ENV === 'production') {
+  const requiredProdVars = [
+    'MONGODB_URI',
+    'JWT_SECRET',
+    'SMTP_HOST',
+    'SMTP_USER',
+    'SMTP_PASSWORD'
+  ];
+
+  for (const envVar of requiredProdVars) {
+    if (!process.env[envVar]) {
+      throw new Error(`Missing required production env var: ${envVar}`);
+    }
+  }
+}
+```

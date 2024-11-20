@@ -1,0 +1,359 @@
+---
+title: Authentication & Security
+description: Documentation for authentication, authorization, and security features
+---
+
+[Previous content remains the same...]
+
+## Session Management
+
+### 1. Session Storage
+
+```typescript
+interface UserSession {
+  id: string;
+  userId: string;
+  token: string;
+  role: UserRole;
+  permissions: string[];
+  createdAt: Date;
+  expiresAt: Date;
+  metadata: {
+    ip: string;
+    userAgent: string;
+    lastActive: Date;
+  };
+}
+
+// Session store implementation
+const sessionStore = {
+  // In-memory cache for active sessions
+  cache: new Map<string, UserSession>(),
+  
+  // Database collection for persistent storage
+  collection: db.collection('sessions'),
+  
+  // Create new session
+  async create(userId: string, role: UserRole, permissions: string[]): Promise<UserSession> {
+    const session: UserSession = {
+      id: generateUUID(),
+      userId,
+      token: generateToken(),
+      role,
+      permissions,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      metadata: {
+        ip: request.ip,
+        userAgent: request.headers['user-agent'],
+        lastActive: new Date()
+      }
+    };
+
+    // Store in cache and database
+    this.cache.set(session.id, session);
+    await this.collection.insertOne(session);
+
+    return session;
+  },
+
+  // Validate and refresh session
+  async validate(sessionId: string): Promise<UserSession | null> {
+    let session = this.cache.get(sessionId);
+    
+    if (!session) {
+      session = await this.collection.findOne({ id: sessionId });
+      if (session) this.cache.set(sessionId, session);
+    }
+
+    if (!session || session.expiresAt < new Date()) {
+      await this.destroy(sessionId);
+      return null;
+    }
+
+    return session;
+  }
+};
+```
+
+### 2. Role & Permission Management
+
+```typescript
+interface RoleCache {
+  roles: Map<string, Role>;
+  lastUpdated: Date;
+}
+
+class RoleManager {
+  private cache: RoleCache = {
+    roles: new Map(),
+    lastUpdated: new Date(0)
+  };
+
+  // Load roles with permissions
+  async loadRoles(): Promise<void> {
+    const roles = await db.collection('roles').find().toArray();
+    
+    this.cache.roles.clear();
+    roles.forEach(role => {
+      this.cache.roles.set(role.id, role);
+    });
+    
+    this.cache.lastUpdated = new Date();
+  }
+
+  // Get role with permissions
+  async getRole(roleId: string): Promise<Role | null> {
+    // Refresh cache if needed
+    if (Date.now() - this.cache.lastUpdated.getTime() > 5 * 60 * 1000) {
+      await this.loadRoles();
+    }
+    
+    return this.cache.roles.get(roleId) || null;
+  }
+
+  // Validate user permissions
+  async validatePermissions(
+    userId: string,
+    requiredPermissions: string[]
+  ): Promise<boolean> {
+    const session = await sessionStore.getCurrentSession(userId);
+    if (!session) return false;
+
+    const role = await this.getRole(session.role);
+    if (!role) return false;
+
+    return requiredPermissions.every(
+      permission => role.permissions.includes(permission)
+    );
+  }
+}
+```
+
+### 3. Session Security
+
+```typescript
+class SessionSecurity {
+  // Secure session creation
+  static async createSecureSession(
+    user: User,
+    request: Request
+  ): Promise<UserSession> {
+    // Generate session token with additional security measures
+    const token = await this.generateSecureToken(user);
+    
+    // Create session with security metadata
+    const session = await sessionStore.create(
+      user.id,
+      user.role,
+      user.permissions,
+      {
+        ip: request.ip,
+        userAgent: request.headers['user-agent'],
+        deviceId: await this.generateDeviceId(request)
+      }
+    );
+
+    // Set secure cookie
+    this.setSecureCookie(session.token);
+
+    return session;
+  }
+
+  // Session validation with security checks
+  static async validateSession(
+    request: Request,
+    sessionId: string
+  ): Promise<boolean> {
+    const session = await sessionStore.validate(sessionId);
+    if (!session) return false;
+
+    // Verify security metadata
+    const securityChecks = [
+      this.validateIP(request.ip, session.metadata.ip),
+      this.validateUserAgent(
+        request.headers['user-agent'],
+        session.metadata.userAgent
+      ),
+      this.validateDeviceId(
+        await this.generateDeviceId(request),
+        session.metadata.deviceId
+      )
+    ];
+
+    return securityChecks.every(check => check === true);
+  }
+
+  // Secure cookie settings
+  private static setSecureCookie(token: string): void {
+    cookies().set('session_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60, // 24 hours
+      path: '/'
+    });
+  }
+}
+```
+
+### 4. Session Middleware
+
+```typescript
+// Session middleware for API routes
+export async function sessionMiddleware(
+  request: NextRequest,
+  next: NextResponse
+) {
+  const sessionToken = request.cookies.get('session_token');
+  
+  if (!sessionToken) {
+    return new NextResponse(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { status: 401 }
+    );
+  }
+
+  try {
+    // Validate session
+    const session = await sessionStore.validate(sessionToken);
+    if (!session) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Invalid session' }),
+        { status: 401 }
+      );
+    }
+
+    // Verify security checks
+    const isSecure = await SessionSecurity.validateSession(
+      request,
+      session.id
+    );
+    
+    if (!isSecure) {
+      await sessionStore.destroy(session.id);
+      return new NextResponse(
+        JSON.stringify({ error: 'Security check failed' }),
+        { status: 401 }
+      );
+    }
+
+    // Attach session to request
+    request.session = session;
+    
+    // Update last active timestamp
+    await sessionStore.updateLastActive(session.id);
+
+    return next();
+  } catch (error) {
+    console.error('Session middleware error:', error);
+    return new NextResponse(
+      JSON.stringify({ error: 'Internal server error' }),
+      { status: 500 }
+    );
+  }
+}
+```
+
+### 5. Role-Based Route Protection
+
+```typescript
+// Route protection with role checks
+export function withRoles(roles: UserRole[]) {
+  return async function(
+    request: NextRequest,
+    next: NextResponse
+  ) {
+    const session = request.session;
+    
+    if (!session) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401 }
+      );
+    }
+
+    if (!roles.includes(session.role)) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Insufficient permissions' }),
+        { status: 403 }
+      );
+    }
+
+    // Log access attempt
+    await auditLogger.log({
+      type: 'access',
+      userId: session.userId,
+      role: session.role,
+      resource: request.url,
+      allowed: true
+    });
+
+    return next();
+  };
+}
+
+// Usage in API route
+export const GET = withRoles(['admin', 'enterprise_admin'])(
+  async function handler(request: NextRequest) {
+    // Protected route logic
+  }
+);
+```
+
+### 6. Session Monitoring
+
+```typescript
+interface SessionMonitor {
+  // Track active sessions
+  activeSessions: Map<string, UserSession>;
+  
+  // Monitor suspicious activity
+  async detectAnomalies(session: UserSession): Promise<void> {
+    const recentActivity = await getRecentActivity(session.userId);
+    
+    // Check for concurrent sessions from different locations
+    const concurrentSessions = recentActivity.filter(
+      activity => 
+        activity.timestamp > session.createdAt &&
+        activity.ip !== session.metadata.ip
+    );
+
+    if (concurrentSessions.length > 0) {
+      await this.handleSecurityAlert({
+        type: 'concurrent_sessions',
+        userId: session.userId,
+        sessions: concurrentSessions
+      });
+    }
+
+    // Check for rapid location changes
+    const locationChanges = this.analyzeLocationChanges(recentActivity);
+    if (locationChanges.suspicious) {
+      await this.handleSecurityAlert({
+        type: 'suspicious_location_changes',
+        userId: session.userId,
+        changes: locationChanges.details
+      });
+    }
+  }
+}
+
+// Session cleanup job
+const cleanupSessions = async () => {
+  const expiredSessions = await sessionStore.collection.find({
+    expiresAt: { $lt: new Date() }
+  }).toArray();
+
+  for (const session of expiredSessions) {
+    await sessionStore.destroy(session.id);
+    await auditLogger.log({
+      type: 'session_expired',
+      userId: session.userId,
+      sessionId: session.id
+    });
+  }
+};
+```
+
+[Rest of the previous content remains the same...]

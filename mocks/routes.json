@@ -1,0 +1,42 @@
+{
+  "portal": {
+    "docs": {
+      "/api/guides": "/guides",
+      "/api/popularTopics": "/popularTopics"
+    },
+    "usage": {
+      "/api/usage": "/usage"
+    },
+    "support": {
+      "/api/tickets": "/tickets",
+      "/api/messages": "/messages"
+    },
+    "settings": {
+      "/api/settings": "/settings"
+    },
+    "reference": {
+      "/api/apiEndpoints": "/apiEndpoints",
+      "/api/apiCategories": "/apiCategories"
+    }
+  },
+  "enterprise": {
+    "organizations": {
+       "/api/enterprise/organizations": "/organizations",
+      "/api/enterprise/organizations/:id": "/organizations/:id",
+      "/api/enterprise/organizations/bulk": "/organizations/bulk",
+      "/api/enterprise/organizations/search": "/organizations/search",
+      "/api/enterprise/organizations/:id/status": "/organizations/:id",
+      "/api/enterprise/organizations/:id/update-plan": "/organizations/:id",
+      "/api/enterprise/organizations/:id/reset-keys": "/organizations/:id"
+    },
+    "analytics": {
+      "/api/enterprise/analytics/usage": "/analytics/usage",
+      "/api/enterprise/analytics/errors": "/analytics/errors",
+      "/api/enterprise/analytics/performance": "/analytics/performance"
+    },
+    "users": {
+      "/api/enterprise/users": "/users",
+      "/api/enterprise/users/:id": "/users/:id"
+    }
+  }
+}

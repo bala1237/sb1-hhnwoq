@@ -1,0 +1,478 @@
+---
+title: Application Routes
+description: Documentation of all routes and their functionality in the Enterprise Developer Portal
+---
+
+# Application Routes
+
+## Overview
+
+The Enterprise Developer Portal uses a hierarchical routing structure with Next.js App Router. Here's a comprehensive guide to all available routes.
+
+## Admin Routes
+
+### Dashboard `/admin/dashboard`
+Main administration dashboard with overview statistics and recent activity.
+
+```typescript
+interface DashboardData {
+  stats: {
+    totalUsers: number;
+    totalOrganizations: number;
+    apiCalls: number;
+    errorRate: number;
+  };
+  recentActivity: Activity[];
+  usageTrends: UsageTrend[];
+}
+```
+
+### Users `/admin/users`
+User management interface for all system users.
+
+```typescript
+// List users: GET /admin/users
+// User details: GET /admin/users/[id]
+// Create user: POST /admin/users
+// Update user: PUT /admin/users/[id]
+interface UserRouteParams {
+  id?: string;        // For user details/update
+  filter?: string;    // For filtering users
+  page?: number;      // For pagination
+  type?: 'internal' | 'external';  // For filtering by user type
+}
+```
+
+### Roles `/admin/roles`
+Role and permission management.
+
+```typescript
+interface RoleRouteData {
+  roles: Role[];
+  permissions: Permission[];
+  assignments: {
+    roleId: string;
+    userId: string;
+  }[];
+}
+```
+
+### Features `/admin/features`
+Feature flag and module management.
+
+```typescript
+interface FeatureRouteData {
+  modules: {
+    [key: string]: {
+      enabled: boolean;
+      submodules: Record<string, boolean>;
+    };
+  };
+  features: Record<string, boolean>;
+}
+```
+
+### Analytics `/admin/analytics`
+System-wide analytics and reporting.
+
+```typescript
+interface AnalyticsParams {
+  startDate?: string;
+  endDate?: string;
+  interval?: 'hour' | 'day' | 'week' | 'month';
+  type?: 'usage' | 'errors' | 'performance';
+}
+```
+
+### Settings `/admin/settings`
+Global system settings and configuration.
+
+```typescript
+interface SettingsRouteData {
+  general: GeneralSettings;
+  security: SecuritySettings;
+  api: ApiSettings;
+}
+```
+
+### White Label `/admin/white-label`
+Portal branding and customization settings.
+
+```typescript
+interface WhiteLabelRouteData {
+  branding: BrandingSettings;
+  theme: ThemeSettings;
+  emailTemplates: EmailTemplateSettings;
+}
+```
+
+## Portal Routes
+
+### API Keys `/portal/api-keys`
+API key management for developers.
+
+```typescript
+interface ApiKeyRouteData {
+  keys: ApiKey[];
+  usage: {
+    [keyId: string]: UsageStats;
+  };
+}
+```
+
+### Sandbox `/portal/sandbox`
+Development sandbox for API testing.
+
+```typescript
+interface SandboxRoutes {
+  '/portal/sandbox/oauth': OAuthTester;
+  '/portal/sandbox/api': ApiTester;
+  '/portal/sandbox/mock-data': MockDataManager;
+  '/portal/sandbox/callback': OAuthCallback;
+}
+```
+
+### Usage `/portal/usage`
+API usage statistics and monitoring.
+
+```typescript
+interface UsageRouteParams {
+  apiKey?: string;    // Filter by specific API key
+  startDate?: string; // Start of date range
+  endDate?: string;   // End of date range
+  interval?: 'hour' | 'day' | 'week';
+}
+```
+
+### Support `/portal/support`
+Developer support interface.
+
+```typescript
+interface SupportRouteData {
+  tickets: SupportTicket[];
+  messages: Message[];
+  documentation: DocSection[];
+}
+```
+
+### Settings `/portal/settings`
+Developer account and API settings.
+
+```typescript
+interface SettingsRoutes {
+  '/portal/settings/profile': UserProfile;
+  '/portal/settings/notifications': NotificationSettings;
+  '/portal/settings/api': ApiSettings;
+}
+```
+
+## Enterprise Routes
+
+### Organizations `/enterprise/organizations`
+Organization management interface.
+
+```typescript
+// List organizations: GET /enterprise/organizations
+// Organization details: GET /enterprise/organizations/[id]
+// Create organization: POST /enterprise/organizations
+// Update organization: PUT /enterprise/organizations/[id]
+interface OrganizationRouteParams {
+  id?: string;
+  tab?: 'details' | 'api-keys' | 'users' | 'usage';
+}
+```
+
+### Analytics `/enterprise/analytics`
+Enterprise-wide analytics dashboard.
+
+```typescript
+interface EnterpriseAnalyticsParams {
+  organizationId?: string;  // Filter by organization
+  metric?: 'usage' | 'errors' | 'performance';
+  period?: 'day' | 'week' | 'month' | 'quarter';
+}
+```
+
+### Users `/enterprise/users`
+Enterprise user management.
+
+```typescript
+interface EnterpriseUserRoutes {
+  '/enterprise/users': UserList;
+  '/enterprise/users/new': CreateUser;
+  '/enterprise/users/[id]': UserDetails;
+  '/enterprise/users/[id]/permissions': UserPermissions;
+  '/enterprise/users/[id]/activity': UserActivity;
+}
+```
+
+### Access Control `/enterprise/access-control`
+Enterprise-wide access control management.
+
+```typescript
+interface AccessControlRouteData {
+  roles: Role[];
+  policies: Policy[];
+  auditLog: AuditEntry[];
+}
+```
+
+### Settings `/enterprise/settings`
+Enterprise-level settings.
+
+```typescript
+interface EnterpriseSettingsRoutes {
+  '/enterprise/settings/general': GeneralSettings;
+  '/enterprise/settings/security': SecuritySettings;
+  '/enterprise/settings/api': ApiConfiguration;
+}
+```
+
+## Organization Routes
+
+### Dashboard `/org/dashboard`
+Organization-specific dashboard.
+
+```typescript
+interface OrgDashboardData {
+  stats: OrgStats;
+  usage: UsageMetrics;
+  activity: ActivityLog[];
+}
+```
+
+### Team `/org/team`
+Team member management.
+
+```typescript
+interface TeamRouteData {
+  members: TeamMember[];
+  invites: PendingInvite[];
+  roles: TeamRole[];
+}
+```
+
+### API Keys `/org/api-keys`
+Organization API key management.
+
+```typescript
+interface ApiKeyRouteData {
+  keys: ApiKey[];
+  usage: UsageStats;
+  limits: RateLimits;
+}
+```
+
+### Usage `/org/usage`
+Organization usage monitoring.
+
+```typescript
+interface UsageRouteData {
+  metrics: UsageMetrics;
+  trends: TrendData[];
+  endpoints: EndpointStats[];
+}
+```
+
+### Support `/org/support`
+Organization support interface.
+
+```typescript
+interface SupportRouteData {
+  tickets: Ticket[];
+  messages: Message[];
+  quickHelp: HelpTopic[];
+}
+```
+
+### Settings `/org/settings`
+Organization settings management.
+
+```typescript
+interface SettingsRouteData {
+  general: OrgSettings;
+  security: SecuritySettings;
+  webhooks: WebhookConfig[];
+}
+```
+
+## Route Protection
+
+### Authentication Requirements
+
+```typescript
+const routeProtection = {
+  admin: {
+    auth: true,
+    roles: ['admin']
+  },
+  enterprise: {
+    auth: true,
+    roles: ['enterprise_admin', 'admin']
+  },
+  portal: {
+    auth: true,
+    roles: ['admin', 'developer', 'viewer']
+  },
+  org: {
+    auth: true,
+    roles: ['org_admin', 'org_developer', 'org_viewer']
+  }
+};
+```
+
+### Middleware Protection
+
+```typescript
+// Route protection middleware
+export function withAuth(config: RouteConfig) {
+  return async (request: NextRequest) => {
+    const session = await getSession(request);
+    
+    if (!session) {
+      return redirect('/auth/login');
+    }
+
+    if (config.roles && !config.roles.includes(session.role)) {
+      return redirect('/unauthorized');
+    }
+
+    return NextResponse.next();
+  };
+}
+```
+
+## Route Handlers
+
+### API Route Pattern
+
+```typescript
+// API route handler pattern
+export async function GET(
+  request: Request,
+  { params }: { params: RouteParams }
+) {
+  try {
+    // Route logic
+    return NextResponse.json(data);
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Error message' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### Dynamic Routes
+
+```typescript
+// Dynamic route parameters
+interface DynamicRouteParams {
+  id: string;         // For entity-specific routes
+  slug: string;       // For content routes
+  action?: string;    // For action routes
+}
+
+// Generate static params for dynamic routes
+export async function generateStaticParams() {
+  // Generate params for static paths
+  return [
+    { param: 'value' }
+  ];
+}
+```
+
+## Route Layouts
+
+### Shared Layouts
+
+```typescript
+// Layout component pattern
+export default function Layout({
+  children
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <div className="layout">
+      <SideNav />
+      <div className="content">
+        {children}
+      </div>
+    </div>
+  );
+}
+```
+
+### Route Groups
+
+```plaintext
+app/
+├── (auth)/           # Authentication routes
+├── (dashboard)/      # Dashboard routes
+├── (api)/           # API routes
+└── (docs)/          # Documentation routes
+```
+
+## Error Handling
+
+### Error Pages
+
+```typescript
+// Error page pattern
+export default function Error({
+  error,
+  reset
+}: {
+  error: Error;
+  reset: () => void;
+}) {
+  return (
+    <ErrorDisplay
+      error={error}
+      onRetry={reset}
+    />
+  );
+}
+```
+
+### Not Found Pages
+
+```typescript
+// Not found page pattern
+export default function NotFound() {
+  return (
+    <NotFoundDisplay
+      message="The requested resource was not found"
+      backLink="/dashboard"
+    />
+  );
+}
+```
+
+## Loading States
+
+### Loading Pages
+
+```typescript
+// Loading page pattern
+export default function Loading() {
+  return (
+    <LoadingSpinner />
+  );
+}
+```
+
+### Suspense Boundaries
+
+```typescript
+// Route with suspense
+export default async function Page() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <PageContent />
+    </Suspense>
+  );
+}
+```

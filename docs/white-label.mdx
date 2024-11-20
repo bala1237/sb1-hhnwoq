@@ -1,0 +1,229 @@
+---
+title: White Label Customization
+description: Documentation for white label and theming capabilities
+---
+
+# White Label Customization
+
+## Overview
+
+The white label system allows organizations to fully customize the portal's appearance to match their brand identity. It provides both pre-configured themes and granular customization options.
+
+## Theme System
+
+### Pre-configured Themes
+
+```typescript
+interface Theme {
+  id: string;
+  name: string;
+  description: string;
+  preview: string;
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    background: string;
+    foreground: string;
+    muted: string;
+    card: string;
+  };
+}
+```
+
+### Available Themes
+
+1. Modern Blue
+   - Professional and clean
+   - High contrast
+   - Accessible color scheme
+
+2. Forest Green
+   - Nature-inspired
+   - Calming palette
+   - Eco-friendly feel
+
+3. Deep Purple
+   - Rich and elegant
+   - Strong visual hierarchy
+   - Modern aesthetic
+
+4. Sunset Orange
+   - Warm and inviting
+   - High energy
+   - Creative feel
+
+5. Dark Mode
+   - Low light optimization
+   - Reduced eye strain
+   - Professional look
+
+## Customization Options
+
+### Branding Elements
+
+1. **Company Identity**
+   - Company name
+   - Logo upload
+   - Favicon
+   - Custom domain
+
+2. **Color Scheme**
+   - Primary color
+   - Secondary color
+   - Accent color
+   - Background colors
+   - Text colors
+
+3. **Typography**
+   - Font family
+   - Font sizes
+   - Font weights
+   - Line heights
+
+### Email Templates
+
+1. **Available Templates**
+   - Welcome email
+   - Password reset
+   - API key notification
+   - Usage alerts
+
+2. **Template Variables**
+   - {{company}}
+   - {{name}}
+   - {{email}}
+   - {{link}}
+
+3. **Customization Options**
+   - Subject line
+   - Content
+   - Styling
+   - Preview functionality
+
+## Implementation
+
+### Theme Selection
+
+```tsx
+<ThemeSelector
+  value={selectedTheme}
+  onChange={handleThemeChange}
+/>
+```
+
+### Custom Colors
+
+```tsx
+<ColorPicker
+  color={primaryColor}
+  onChange={handleColorChange}
+/>
+```
+
+### Theme Preview
+
+```tsx
+<ThemePreview
+  primaryColor={colors.primary}
+  secondaryColor={colors.secondary}
+  accentColor={colors.accent}
+/>
+```
+
+## Best Practices
+
+### Color Selection
+
+1. **Accessibility**
+   - Maintain contrast ratios
+   - Consider color blindness
+   - Test with screen readers
+
+2. **Consistency**
+   - Use color systematically
+   - Maintain visual hierarchy
+   - Follow brand guidelines
+
+3. **Performance**
+   - Optimize image assets
+   - Use CSS variables
+   - Minimize runtime changes
+
+### Theme Management
+
+1. **Version Control**
+   - Theme versioning
+   - Backup system
+   - Change history
+
+2. **Export/Import**
+   - Theme portability
+   - Backup/restore
+   - Theme sharing
+
+3. **Testing**
+   - Cross-browser testing
+   - Responsive design
+   - Performance impact
+
+## Component Styling
+
+### Base Components
+
+1. **Buttons**
+   - Primary
+   - Secondary
+   - Ghost
+   - Destructive
+
+2. **Forms**
+   - Inputs
+   - Select
+   - Checkbox
+   - Radio
+
+3. **Cards**
+   - Default
+   - Interactive
+   - Featured
+
+### Custom Components
+
+1. **Navigation**
+   - Sidebar
+   - Top bar
+   - Breadcrumbs
+
+2. **Data Display**
+   - Tables
+   - Charts
+   - Stats
+
+3. **Feedback**
+   - Alerts
+   - Toasts
+   - Modals
+
+## Integration Guide
+
+### Setup
+
+1. Install dependencies
+2. Configure theme provider
+3. Set up color system
+4. Import base components
+
+### Customization
+
+1. Define theme override
+2. Set up CSS variables
+3. Create custom components
+4. Apply branding elements
+
+### Deployment
+
+1. Build optimization
+2. Asset management
+3. Cache strategy
+4. Performance monitoring

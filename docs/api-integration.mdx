@@ -1,0 +1,262 @@
+---
+title: API Integration
+description: Documentation for API integration and client implementation
+---
+
+# API Integration
+
+## Overview
+
+The API integration layer provides a robust and type-safe way to interact with backend services. It includes error handling, request/response interceptors, and module-specific clients.
+
+## API Client Architecture
+
+### Base Client
+
+```typescript
+const apiClient = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add auth interceptor
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+```
+
+### Module-Specific Clients
+
+```typescript
+// Enterprise API Client
+export const enterpriseApi = {
+  organizations: organizationsApi,
+  analytics: analyticsApi,
+  users: usersApi,
+  accessControl: accessControlApi,
+};
+
+// Portal API Client
+export const portalApi = {
+  docs: docsApi,
+  reference: referenceApi,
+  usage: usageApi,
+  support: supportApi,
+};
+```
+
+## Error Handling
+
+### Error Types
+
+```typescript
+interface ApiError {
+  code: string;
+  message: string;
+  details?: any;
+}
+
+interface ApiResponse<T> {
+  data: T | null;
+  error: string | null;
+}
+```
+
+### Error Handling Strategy
+
+1. **Request Level**
+   - Validation
+   - Authentication
+   - Network errors
+
+2. **Response Level**
+   - Status codes
+   - Error messages
+   - Recovery options
+
+3. **UI Feedback**
+   - Error states
+   - Loading states
+   - Success messages
+
+## Authentication
+
+### Token Management
+
+```typescript
+// Auth interceptor
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Token refresh
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      // Handle token refresh
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+### API Key Management
+
+- Generation
+- Validation
+- Rotation
+- Revocation
+
+## Module Integration
+
+### Enterprise Module
+
+```typescript
+export const organizationsApi = {
+  getAll: () => apiClient.get('/enterprise/organizations'),
+  getById: (id: string) => apiClient.get(`/enterprise/organizations/${id}`),
+  create: (data: CreateOrgDto) => apiClient.post('/enterprise/organizations', data),
+  update: (id: string, data: UpdateOrgDto) => apiClient.put(`/enterprise/organizations/${id}`, data),
+};
+```
+
+### Portal Module
+
+```typescript
+export const docsApi = {
+  getGuides: () => apiClient.get('/docs/guides'),
+  getPopularTopics: () => apiClient.get('/docs/popular-topics'),
+};
+
+export const usageApi = {
+  getUsageData: () => apiClient.get('/usage'),
+};
+```
+
+## Type Safety
+
+### Request/Response Types
+
+```typescript
+interface Organization {
+  id: string;
+  name: string;
+  plan: 'growth' | 'business' | 'enterprise';
+  status: 'active' | 'suspended' | 'inactive';
+}
+
+interface CreateOrgDto {
+  name: string;
+  plan: Organization['plan'];
+  settings: {
+    rateLimit: number;
+    customDomain?: string;
+  };
+}
+```
+
+### API Response Wrapper
+
+```typescript
+interface ApiResponse<T> {
+  data: T | null;
+  error: string | null;
+}
+
+async function apiCall<T>(
+  promise: Promise<AxiosResponse<T>>
+): Promise<ApiResponse<T>> {
+  try {
+    const response = await promise;
+    return { data: response.data, error: null };
+  } catch (error) {
+    return { data: null, error: handleApiError(error) };
+  }
+}
+```
+
+## Best Practices
+
+### API Design
+
+1. **Consistency**
+   - URL structure
+   - Response format
+   - Error handling
+
+2. **Performance**
+   - Request caching
+   - Data pagination
+   - Batch operations
+
+3. **Security**
+   - Input validation
+   - Rate limiting
+   - CORS configuration
+
+### Implementation
+
+1. **Code Organization**
+   - Module separation
+   - Type definitions
+   - Error handling
+
+2. **Testing**
+   - Unit tests
+   - Integration tests
+   - Mock responses
+
+3. **Maintenance**
+   - Documentation
+   - Version control
+   - Change tracking
+
+## Usage Examples
+
+### Basic Usage
+
+```typescript
+// Get organizations
+const { data, error } = await enterpriseApi.organizations.getAll();
+if (error) {
+  // Handle error
+}
+
+// Create organization
+const result = await enterpriseApi.organizations.create({
+  name: 'Acme Corp',
+  plan: 'enterprise',
+  settings: {
+    rateLimit: 10000
+  }
+});
+```
+
+### With React Query
+
+```typescript
+function useOrganizations() {
+  return useQuery({
+    queryKey: ['organizations'],
+    queryFn: () => enterpriseApi.organizations.getAll()
+  });
+}
+
+function useCreateOrganization() {
+  return useMutation({
+    mutationFn: (data: CreateOrgDto) => 
+      enterpriseApi.organizations.create(data)
+  });
+}
+```

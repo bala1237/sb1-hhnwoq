@@ -1,0 +1,305 @@
+---
+title: Module Documentation
+description: Detailed documentation of individual modules and code structure
+---
+
+# Module Documentation
+
+## Overview
+
+The Enterprise Developer Portal is organized into distinct modules, each handling specific functionality. This modular architecture promotes code reusability, maintainability, and clear separation of concerns.
+
+## Core Modules
+
+### 1. Admin Module
+
+The admin module handles portal administration and configuration.
+
+```typescript
+// Example Role Management
+interface Role {
+  id: string;
+  name: string;
+  permissions: Permission[];
+  scope: 'global' | 'organization';
+}
+
+// Feature Flag Configuration
+interface FeatureFlag {
+  id: string;
+  enabled: boolean;
+  access: {
+    roles: string[];
+    plans: string[];
+  };
+}
+```
+
+#### Key Components
+- `RoleManager`: Handles role creation and permission assignment
+- `FeatureFlags`: Controls feature availability
+- `WhiteLabel`: Manages portal branding and customization
+- `Analytics`: System-wide analytics and reporting
+
+#### Usage Example
+```typescript
+// Role-based access control
+const canAccessFeature = (user: User, feature: string) => {
+  const userRole = roles.find(r => r.id === user.roleId);
+  return userRole?.permissions.includes(feature) ?? false;
+};
+```
+
+### 2. Portal Module
+
+The portal module provides developer-facing functionality.
+
+```typescript
+// API Key Management
+interface ApiKey {
+  id: string;
+  name: string;
+  key: string;
+  scopes: string[];
+  expiresAt?: Date;
+  rateLimit: number;
+}
+
+// Usage Analytics
+interface UsageMetrics {
+  requests: number;
+  errors: number;
+  latency: number;
+  timestamp: Date;
+}
+```
+
+#### Key Components
+- `ApiKeyManager`: API key lifecycle management
+- `Documentation`: Interactive API documentation
+- `UsageAnalytics`: Usage tracking and reporting
+- `SupportPortal`: Developer support system
+
+#### Usage Example
+```typescript
+// API Key validation
+const validateApiKey = async (key: string): Promise<boolean> => {
+  const apiKey = await ApiKey.findOne({ key, status: 'active' });
+  return apiKey && (!apiKey.expiresAt || apiKey.expiresAt > new Date());
+};
+```
+
+### 3. Enterprise Module
+
+Handles organization-level management and controls.
+
+```typescript
+// Organization Management
+interface Organization {
+  id: string;
+  name: string;
+  plan: 'growth' | 'business' | 'enterprise';
+  settings: {
+    rateLimit: number;
+    customDomain?: string;
+  };
+  users: User[];
+}
+
+// Access Control
+interface AccessPolicy {
+  id: string;
+  name: string;
+  rules: PolicyRule[];
+  scope: 'organization' | 'team';
+}
+```
+
+#### Key Components
+- `OrganizationManager`: Organization lifecycle management
+- `UserManager`: Enterprise user management
+- `AccessControl`: Fine-grained access control
+- `EnterpriseAnalytics`: Organization-level analytics
+
+#### Usage Example
+```typescript
+// Organization rate limit check
+const checkRateLimit = async (orgId: string, apiKey: string) => {
+  const usage = await getApiUsage(orgId, apiKey);
+  const org = await Organization.findById(orgId);
+  return usage.hourly < org.settings.rateLimit;
+};
+```
+
+## Module Integration
+
+### Inter-Module Communication
+
+```typescript
+// Event System
+interface SystemEvent {
+  type: string;
+  source: string;
+  data: any;
+  timestamp: Date;
+}
+
+// Event Handler Example
+const handleUserCreated = async (event: SystemEvent) => {
+  if (event.type === 'user.created') {
+    await Promise.all([
+      notifyAdmins(event.data),
+      createAuditLog(event),
+      updateAnalytics(event)
+    ]);
+  }
+};
+```
+
+### Shared Resources
+
+```typescript
+// Shared Types
+interface User {
+  id: string;
+  type: 'internal' | 'external';
+  role: UserRole;
+  status: 'active' | 'suspended';
+  permissions: string[];
+}
+
+// Shared Utilities
+const utils = {
+  validation: {
+    isValidEmail: (email: string) => /\S+@\S+\.\S+/.test(email),
+    isStrongPassword: (password: string) => password.length >= 8
+  },
+  formatting: {
+    formatDate: (date: Date) => date.toISOString(),
+    formatCurrency: (amount: number) => `$${amount.toFixed(2)}`
+  }
+};
+```
+
+## Module Development Guidelines
+
+### 1. File Structure
+
+```plaintext
+module/
+├── components/     # React components
+│   ├── ui/        # Reusable UI components
+│   └── features/  # Feature-specific components
+├── lib/           # Module utilities
+│   ├── api/       # API clients
+│   ├── hooks/     # React hooks
+│   └── utils/     # Helper functions
+├── types/         # TypeScript types
+└── tests/         # Unit and integration tests
+```
+
+### 2. Component Organization
+
+```typescript
+// Component Structure Example
+interface ComponentProps {
+  data: any;
+  onAction: (action: string) => void;
+}
+
+const ExampleComponent: React.FC<ComponentProps> = ({ data, onAction }) => {
+  // State management
+  const [state, setState] = useState(initialState);
+
+  // Side effects
+  useEffect(() => {
+    // Component logic
+  }, [dependencies]);
+
+  // Event handlers
+  const handleEvent = () => {
+    // Event handling logic
+  };
+
+  return (
+    <div>
+      {/* Component JSX */}
+    </div>
+  );
+};
+```
+
+### 3. Testing Strategy
+
+```typescript
+// Unit Test Example
+describe('ApiKeyManager', () => {
+  it('should validate API keys correctly', () => {
+    const validKey = 'valid_key';
+    const result = validateApiKey(validKey);
+    expect(result).toBe(true);
+  });
+
+  it('should reject expired keys', () => {
+    const expiredKey = 'expired_key';
+    const result = validateApiKey(expiredKey);
+    expect(result).toBe(false);
+  });
+});
+```
+
+## Best Practices
+
+1. **State Management**
+   - Use React hooks for local state
+   - Implement context for shared state
+   - Keep state close to where it's used
+
+2. **Performance**
+   - Implement proper memoization
+   - Use lazy loading for heavy components
+   - Optimize re-renders
+
+3. **Error Handling**
+   - Implement proper error boundaries
+   - Use consistent error formats
+   - Provide meaningful error messages
+
+4. **Security**
+   - Validate all inputs
+   - Implement proper access controls
+   - Follow security best practices
+
+## Deployment Process
+
+1. **Build Pipeline**
+   ```bash
+   npm run build
+   npm run test
+   npm run lint
+   ```
+
+2. **Environment Configuration**
+   ```typescript
+   const config = {
+     api: {
+       url: process.env.API_URL,
+       timeout: parseInt(process.env.API_TIMEOUT, 10)
+     },
+     auth: {
+       secret: process.env.AUTH_SECRET,
+       expiresIn: '24h'
+     }
+   };
+   ```
+
+3. **Monitoring Setup**
+   ```typescript
+   const monitoring = {
+     metrics: ['response_time', 'error_rate', 'api_calls'],
+     alerts: {
+       errorRate: { threshold: 0.01, window: '5m' },
+       responseTime: { threshold: 500, window: '1m' }
+     }
+   };
+   ```
